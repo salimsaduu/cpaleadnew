@@ -1,14 +1,15 @@
 const express = require("express");
 const admin = require("firebase-admin");
-const serviceAccount = require("./serviceAccountKey.json");
 
 const app = express();
 
 // Firebase Admin init
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://earn-captcha-bot-latest-default-rtdb.firebaseio.com"
-});
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(JSON.parse(process.env.SERVICE_ACCOUNT)),
+    databaseURL: process.env.FIREBASE_DB_URL
+  });
+}
 
 const db = admin.database();
 const firestore = admin.firestore();
@@ -56,7 +57,5 @@ app.get("/", (req, res) => {
   res.send("🚀 CPAlead Postback Server Running");
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+// 👉 Vercel ke liye handler export
+module.exports = app;
