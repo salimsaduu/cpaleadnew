@@ -1,18 +1,20 @@
 const express = require("express");
 const admin = require("firebase-admin");
-const serviceAccount = require("./serviceAccountKey.json");
 
 const app = express();
 
-// Firebase Admin init
+// Firebase Admin init (from env vars)
+const serviceAccount = JSON.parse(process.env.SERVICE_ACCOUNT);
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://earn-captcha-bot-latest-default-rtdb.firebaseio.com"
+  databaseURL: process.env.FIREBASE_DB_URL
 });
 
 const db = admin.database();
 const firestore = admin.firestore();
 
+// Postback Route
 app.get("/postback", async (req, res) => {
   try {
     console.log("👉 Postback received:", req.query);
@@ -26,13 +28,13 @@ app.get("/postback", async (req, res) => {
     // Coins conversion (1$ = 4000 coins)
     const coins = Math.floor(parseFloat(payout) * 4000);
 
-    // Realtime DB update
+    // 🔹 Realtime DB update
     const userRefRT = db.ref(`users/${subid}/coins`);
     const snapshot = await userRefRT.once("value");
     let currentCoinsRT = snapshot.val() || 0;
     await userRefRT.set(currentCoinsRT + coins);
 
-    // Firestore users collection update
+    // 🔹 Firestore users collection update
     const userRefFS = firestore.collection("users").doc(subid);
     const userDoc = await userRefFS.get();
     let currentCoinsFS = 0;
@@ -44,7 +46,7 @@ app.get("/postback", async (req, res) => {
       { merge: true }
     );
 
-    // Firestore history collection (new entry for each transaction)
+    // 🔹 Firestore history collection (new entry for each transaction)
     await firestore.collection("history").add({
       subid,
       transactionId,
@@ -61,10 +63,12 @@ app.get("/postback", async (req, res) => {
   }
 });
 
+// Root Route
 app.get("/", (req, res) => {
   res.send("🚀 CPAlead Postback Server Running");
 });
 
+// Server Listen
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
